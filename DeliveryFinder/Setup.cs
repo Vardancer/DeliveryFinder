@@ -1,34 +1,47 @@
+using System.CommandLine;
 using System.Reflection;
 using Serilog;
 
 namespace DeliveryFinder;
 
-internal static class Setup
+internal class Setup
 {
-    private static string LogFile { get; set; } = Assembly.GetEntryAssembly().GetName().Name + ".log";
-    internal static void SetupOptions(string[] args)
-    {
-        
-        if (args.Length == 0 || args.Length < 2)
-        {
-            Console.WriteLine("Usage: {0} [OPTIONS]", Assembly.GetExecutingAssembly().GetName().Name);
-            Console.WriteLine("Options:");
-            Console.WriteLine("  -city --cityDistrict <A1> Район доставки");
-            Console.WriteLine("  -toDate --firstDeliveryDateTime <2024-06-23 15:25:59> Время первой доставки");
-            Environment.Exit(1);
-        }
+    private readonly ILogger _logger;
+    private readonly DatabaseOperations _db;
 
+    public Setup(ILogger logger, DatabaseOperations db)
+    {
+        _logger = logger;
+        _db = db;
     }
-
-    public static void SetupLogger(string logFile)
+    public RootCommand SetupOptions()
     {
-        // if(LogFile == null) Console.WriteLine("Log file not specified");
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .WriteTo.Console()
-            .WriteTo.File(logFile, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true)
-            .CreateLogger();
+        var cityOption = new Option<string>(
+            aliases: ["-c", "--city"],
+            description: "City to search"){IsRequired = true};
         
-        Log.Logger.Information("Starting...");
+        var dateOption = new Option<DateTime>(
+            aliases: ["-d", "--date"],
+            getDefaultValue: () => DateTime.Now,
+            description: "Date");
+        
+        var resultDst = new Option<string>(
+            aliases: ["-r", "--result"],
+            description: "путь к файлу с результатом выборки");
+        
+        var rootCommand = new RootCommand("Delivery Finder\nBy default application will list nearest deliveries");
+        rootCommand.AddOption(cityOption);
+        rootCommand.AddOption(dateOption);
+        rootCommand.AddOption(resultDst);
+        
+        _logger.Information("Program started");
+        
+        rootCommand.SetHandler((city, date) =>
+        {
+            var dtos = _db.ReadDb(city, date);
+            Console.WriteLine(dtos);
+        }, cityOption, dateOption);
+        
+        return rootCommand;
     }
 }
