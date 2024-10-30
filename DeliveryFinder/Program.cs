@@ -16,7 +16,7 @@ internal class Program
         
         var builder = new ContainerBuilder();
         
-        builder.RegisterType<Setup>().AsSelf();
+        builder.RegisterType<CommandLine>().AsSelf();
         builder.RegisterType<DatabaseOperations>().AsSelf();
 
         builder.Register<ILogger>((context, parameters) => 
@@ -33,7 +33,7 @@ internal class Program
     {
         using (var scope = Container.BeginLifetimeScope())
         {
-            var cc = scope.Resolve<Setup>();
+            var cc = scope.Resolve<CommandLine>();
             var rootCommand = cc.SetupOptions();
             return rootCommand.Invoke(args);
         }
